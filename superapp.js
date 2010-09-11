@@ -1,13 +1,22 @@
-var SuperApp = new SuperClass();
+//= require <superclass>
+//= require <superevent>
 
-SuperApp.extend({
-  states: {},
-  current: null,
-  observers: [],
+var SuperApp = new SuperClass;
+SuperApp.include(SuperEvent);
+SuperApp.include({
+  init: function(){
+    this.states  = {};
+    this.current = new SuperApp.State;
+  },
   
-  addState: function(name, options){
-    var state = new this(name, options);
+  add: function(name){
+    var state = new SuperApp.State(this, name);
     this.states[name] = state;
+    return state;
+  },
+  
+  find: function(name){
+    return(this.states[name]);
   },
   
   change: function(){
@@ -18,9 +27,7 @@ SuperApp.extend({
     var state    = this.states[name];
     
     if ( !state ) throw "Unknown state: " + name;
-    
-    // if ( state == previous ) return;
-    
+        
     state.runSetup();
     previous.beforeExit();
     state.beforeEnter.apply(state, args);
@@ -30,32 +37,20 @@ SuperApp.extend({
     state.afterEnter();
     previous.afterExit();
     
-    for (var i in this.observers) {
-      this.observers[i](name);
-    }
-  },
-  
-  setup: function(){
-    this.current = new this;
-  },
-  
-  onChange: function(cb){
-    this.observers.push(cb);
+    this.trigger("change", name, state);
   }
 });
 
-SuperApp.include({
-  load:        function(){},
-  setup:       function(){},
-  beforeEnter: function(){},
-  afterEnter:  function(){},
-  beforeExit:  function(){},
-  afterExit:   function(){},
-  
-  init: function(name, options){
+SuperApp.State = new SuperClass;
+SuperApp.State.include(SuperEvent);
+
+SuperApp.State.include({
+  init: function(app, name){
+    this.app  = app;
     this.name = name;
-    jQuery.extend(this, options || {});
-    jQuery(this.proxy(this.load));
+    jQuery(this.proxy(function(){
+      this.load();
+    }));
   },
   
   runSetup: function(){
@@ -65,9 +60,13 @@ SuperApp.include({
     }
   },
   
-  async: function(callback){
-    setTimeout(this.proxy(callback), 20);
+  delay: function(func, timeout){
+    setTimeout(this.proxy(func, timeout || 0));
   }
 });
 
-SuperApp.setup();
+SuperApp.State.fn.setupEvents([
+  "beforeEnter", "afterEnter", 
+  "beforeExit", "afterExit",
+  "load", "setup"
+]);

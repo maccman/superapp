@@ -1,28 +1,24 @@
+//= require <superapp>
+//= require <superevent>
 
 if (typeof jQuery.support.CSSAnimation == "undefined")
   jQuery.support.CSSAnimation = (typeof WebKitTransitionEvent != "undefined");
   
-SuperApp.view = new SuperClass();
+SuperApp.View = new SuperClass();
+SuperApp.View.include(SuperEvent);
 
-SuperApp.view.extend({
-  current: null,
-  elementSelector: "#views",
-  animations: jQuery.support.CSSAnimation,
-  observers: [],
-
-  findAnimation: function(fview, tview) { },
-  
-  element: function(){
-    return jQuery(this.elementSelector);
+SuperApp.View.include({
+  init: function(element){
+    this.element    = jQuery(element);
+    this.animations = jQuery.support.CSSAnimation;
+    this.current    = null;
   },
   
-  elements: function(){
-    return this.element().find("[data-view=*]");
+  find: function(name){
+    return this.element.find("> [data-view='" + name + "']:first");
   },
   
-  findView: function(name){
-    return this.element().find("[data-view='" + name + "']:first");
-  },
+  findAnimation: function(fview, tview) { },    
   
   equal: function(fview, tview){
     return(fview[0] == tview[0]);
@@ -35,15 +31,14 @@ SuperApp.view.extend({
     } else {
       if(fromView) fromView.removeClass("current");
     }
-    this.current = toView;
   },
   
   change: function(name){
     var fromView = this.current;
-    var toView   = this.findView(name);
+    var toView   = this.find(name);
     
     if (fromView && this.equal(fromView, toView)) return;
-    
+        
     var animation;
     if ( this.animations ) 
   		animation = this.findAnimation(fromView, toView);
@@ -61,56 +56,43 @@ SuperApp.view.extend({
       this.callback(fromView, toView);
     }
     
-    for (var i in this.observers) {
-      this.observers[i](toView);
-    }
-  },
-  
-  onChange: function(cb){
-    this.observers.push(cb);
+    this.current = toView;
+    this.trigger("change");
   }
 });
 
 if (typeof SuperApp != "undefined") {
   
-  SuperApp.include({
-    initWithView: function(){
-      jQuery(jQuery.proxy(this.viewLoad, this));
-      this.initWithoutView.apply(this, arguments);
+  var oldStateInit = SuperApp.State.fn.init;
+  
+  SuperApp.State.include({
+    init: function(){
+      jQuery(this.proxy(this.loadView));
+      oldStateInit.apply(this, arguments);
     },
     
-    viewLoad: function(){
-      if ( !this.view ) return;
-      this.viewElement = this.findView();
-      this.setupElements();      
-    },
-    
-    findView: function(){
-      return this._class.view.findView(this.name);
-    },
-    
-    elementNames: function(){
-      var self = this;
-      var elements = self.viewElement.find("[data-element]");
-      return jQuery.map(elements, function(item, i){ 
-        return jQuery(item).attr("data-element");
-      });
-    },
-
-    setupElements: function(){
-      var self = this;
-      // We're doing it in this convoluted way, so live events still work.
-      jQuery.each(this.elementNames(), function(i, name){
-        self[name] = self.viewElement.find("[data-element='" + name + "']");
-      });
+    loadView: function(){
+      if ( !this.hasView ) return;
+      this.view = this.app.view.find(this.name);
+      this.view.find("[data-name]").each(this.proxy(function(i, item){
+        item = jQuery(item);
+        this[item.attr("data-name")] = item;
+      }));
     }
   });
   
-  SuperApp.fn.aliasMethodChain("init", "View");
+  var oldInit = SuperApp.fn.init;
   
-  SuperApp.onChange(function(name){
-    var view = SuperApp.current.view;
-    if (view == true) view = SuperApp.current.name;
-    if (view) SuperApp.view.change(view);
+  SuperApp.include({
+    init: function(){
+      this.on("change", this.proxy(this.changeView));
+      oldInit.apply(this, arguments);
+    },
+    
+    changeView: function(){
+      if ( !this.current || !this.current.hasView ) return;
+      if ( !this.view ) throw "View not connected";
+      this.view.change(this.current.name);
+    }
   });
 }

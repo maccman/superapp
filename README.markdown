@@ -43,31 +43,41 @@ Example:
 
 SuperApp is a state machine, the callbacks available are documented below.
 
-    SuperApp.addState("authorize", {  
-      load: function(){
-        // Triggered on page load
-      },
-  
-      setup: function(){
-        // Trigger first time state is used
-      },
-  
-      beforeEnter: function(){
-      },
+    var App = new SuperClass;
+    App.extend(SuperEvent);
+
+    App.extend({
+      state: new SuperApp,
+    });
+    
+    
+    (function($){
+
+    var state = App.state.add("search");
+
+    state.load(function(){
+      // On page load
+    });
+
+    state.setup(function(){
+      // When first entered
+    });
+
+    state.beforeEnter(function(query){
+    });
+    
+    state.afterEnter(function(){
       
-      afterEnter: function(){
-      },
-  
-      beforeExit: function(){
-      }
     });
+
+    })(jQuery);
     
-    // Callback
-    SuperApp.onChange(function(){
-    });
+    App.state.change("search", "query");
+
     
-    // Change state
-    SuperApp.change("authorize");
+    App.state.change(function(to, state){
+      // change callback
+    })
     
 #SuperApp.view
 
@@ -90,26 +100,31 @@ Example:
     <script src="superapp.view.js" type="text/javascript" charset="utf-8"></script>
 
     <script type="text/javascript" charset="utf-8">
-      SuperApp.addState("view1", {  
-        beforeEnter: function(){
-          // #view1 div
-          this.viewElement.height(100);
-          
-          // variable automatically populated from
-          // data-element span in the view
-          this.userName.text("wem");
-        },
+      var app = new SuperApp;
+      
     
-        // Enable view support for this state
-        view: true
+      var state = app.add("view1");
+      
+      state.beforeEnter(function(){
+        // #view1 div
+        this.viewElement.height(100);
+        
+        // variable automatically populated from
+        // data-element span in the view
+        this.userName.text("wem");
       });
+      
+      state.hasView = true;
+      
+      var state2 = app.add("view2");
+      state2.hasView = true;
   
-      SuperApp.addState("view2", {  
-        view: true
-      });
-  
+      var state2 = app.add("view2");
+      state2.hasView = true;
+    
       jQuery(function(){
-        SuperApp.change("view1")
+        app.view = new SuperApp.View($("#views"));
+        app.change("view1");
       })
     </script>
 
